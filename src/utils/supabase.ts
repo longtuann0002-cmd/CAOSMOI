@@ -24,60 +24,53 @@ export const supabase = isSupabaseConfigured
 
 
 /**
- * Synchronize data state to Supabase cloud database
- * @param key LocalStorage matched key
- * @param data Array or Object data block to serialize
+ * Upsert an array of records into a Supabase table.
+ * @param table Supabase table name
+ * @param records Records to upsert
+ * @param onConflict Column to use for upsert conflict resolution
  * @returns Success status indicator
  */
-export async function syncToSupabase(key: string, data: any): Promise<boolean> {
+export async function upsertTableData<T>(table: string, records: T[], onConflict: string = 'id'): Promise<boolean> {
   if (!supabase) return false;
+  if (!Array.isArray(records)) return false;
+  if (records.length === 0) return true;
+
   try {
     const { error } = await supabase
-      .from('camlease_store')
-      .upsert(
-        { 
-          key, 
-          value: JSON.stringify(data), 
-          updated_at: new Date().toISOString() 
-        }, 
-        { onConflict: 'key' }
-      );
-    
+      .from(table)
+      .upsert(records, { onConflict });
+
     if (error) {
-      console.warn(`[Supabase] Sync failed for "${key}":`, error.message);
+      console.warn(`[Supabase] Upsert failed for table "${table}":`, error.message);
       return false;
     }
     return true;
   } catch (err) {
-    console.error(`[Supabase] Exception syncing "${key}":`, err);
+    console.error(`[Supabase] Exception upserting table "${table}":`, err);
     return false;
   }
 }
 
 /**
- * Fetch synchronized data state from Supabase cloud database
- * @param key LocalStorage matched key
- * @returns Parsed JSON data or null if empty/unavailable
+ * Fetch all records from a Supabase table.
+ * @param table Supabase table name
+ * @returns Array of records or null if unavailable
  */
-export async function fetchFromSupabase(key: string): Promise<any | null> {
+export async function fetchTableData<T>(table: string): Promise<T[] | null> {
   if (!supabase) return null;
   try {
     const { data, error } = await supabase
-      .from('camlease_store')
-      .select('value')
-      .eq('key', key)
-      .maybeSingle(); // Prevents throwing 406 on no records found
-    
+      .from(table)
+      .select('*');
+
     if (error) {
-      console.warn(`[Supabase] Fetch failed for "${key}":`, error.message);
+      console.warn(`[Supabase] Fetch failed for table "${table}":`, error.message);
       return null;
     }
-    
-    if (data && data.value) {
-      return JSON.parse(data.value);
-    }
+
+    return data || [];
   } catch (err) {
-    console.error(`[Supabase] Exception fetching "${key}":`, err);
+    console.error(`[Supabase] Exception fetching table "${table}":`, err);
+    return null;
   }
-  return null;
 }

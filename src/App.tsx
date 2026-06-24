@@ -8,7 +8,7 @@ import {
   INITIAL_CONTRACTS,
   INITIAL_EXPENSES
 } from './utils/mockData';
-import { isSupabaseConfigured, syncToSupabase, fetchFromSupabase } from './utils/supabase';
+import { isSupabaseConfigured, upsertTableData, fetchTableData } from './utils/supabase';
 
 
 // Component imports
@@ -260,28 +260,28 @@ export default function App() {
   useEffect(() => {
     saveStoredData('cameras', cameras);
     if (isSupabaseConfigured) {
-      syncToSupabase('cameras', cameras);
+      upsertTableData('cameras', cameras);
     }
   }, [cameras]);
 
   useEffect(() => {
     saveStoredData('contracts', contracts);
     if (isSupabaseConfigured) {
-      syncToSupabase('contracts', contracts);
+      upsertTableData('contracts', contracts);
     }
   }, [contracts]);
 
   useEffect(() => {
     saveStoredData('customers', customers);
     if (isSupabaseConfigured) {
-      syncToSupabase('customers', customers);
+      upsertTableData('customers', customers);
     }
   }, [customers]);
 
   useEffect(() => {
     saveStoredData('expenses', expenses);
     if (isSupabaseConfigured) {
-      syncToSupabase('expenses', expenses);
+      upsertTableData('expenses', expenses);
     }
   }, [expenses]);
 
@@ -311,9 +311,6 @@ export default function App() {
 
   useEffect(() => {
     saveStoredData('registeredUsers', registeredUsers);
-    if (isSupabaseConfigured) {
-      syncToSupabase('registeredUsers', registeredUsers);
-    }
   }, [registeredUsers]);
 
   useEffect(() => {
@@ -322,9 +319,6 @@ export default function App() {
 
   useEffect(() => {
     saveStoredData('camlease_snapshots', snapshots);
-    if (isSupabaseConfigured) {
-      syncToSupabase('camlease_snapshots', snapshots);
-    }
   }, [snapshots]);
 
   // Load initial data block asynchronously from Supabase if configured or seed if empty
@@ -332,30 +326,26 @@ export default function App() {
     if (isSupabaseConfigured) {
       const loadInitialSupabaseData = async () => {
         try {
-          const cloudCameras = await fetchFromSupabase('cameras');
-          const cloudContracts = await fetchFromSupabase('contracts');
-          const cloudCustomers = await fetchFromSupabase('customers');
-          const cloudExpenses = await fetchFromSupabase('expenses');
-          const cloudUsers = await fetchFromSupabase('registeredUsers');
-          const cloudSnapshots = await fetchFromSupabase('camlease_snapshots');
+              const cloudCameras = await fetchTableData<Camera>('cameras');
+          const cloudContracts = await fetchTableData<RentalContract>('contracts');
+          const cloudCustomers = await fetchTableData<Customer>('customers');
+          const cloudExpenses = await fetchTableData<Expense>('expenses');
 
-          if (cloudCameras) setCameras(cloudCameras);
-          if (cloudContracts) setContracts(cloudContracts);
-          if (cloudCustomers) setCustomers(cloudCustomers);
-          if (cloudExpenses) setExpenses(cloudExpenses);
-          if (cloudUsers) setRegisteredUsers(cloudUsers);
-          if (cloudSnapshots) setSnapshots(cloudSnapshots);
+          if (Array.isArray(cloudCameras) && cloudCameras.length > 0) setCameras(cloudCameras);
+          if (Array.isArray(cloudContracts) && cloudContracts.length > 0) setContracts(cloudContracts);
+          if (Array.isArray(cloudCustomers) && cloudCustomers.length > 0) setCustomers(cloudCustomers);
+          if (Array.isArray(cloudExpenses) && cloudExpenses.length > 0) setExpenses(cloudExpenses);
 
-          if (cloudCameras || cloudContracts || cloudCustomers || cloudExpenses) {
-            // Synchronized successfully, no toast notification displayed
-          } else {
+          const hasCloudData = [cloudCameras, cloudContracts, cloudCustomers, cloudExpenses].some(
+            (records) => Array.isArray(records) && records.length > 0
+          );
+
+          if (!hasCloudData) {
             console.log('[Supabase] Initializing store seed records on cloud');
-            await syncToSupabase('cameras', cameras);
-            await syncToSupabase('contracts', contracts);
-            await syncToSupabase('customers', customers);
-            await syncToSupabase('expenses', expenses);
-            await syncToSupabase('registeredUsers', registeredUsers);
-            await syncToSupabase('camlease_snapshots', snapshots);
+            await upsertTableData('cameras', cameras);
+            await upsertTableData('contracts', contracts);
+            await upsertTableData('customers', customers);
+            await upsertTableData('expenses', expenses);
           }
         } catch (err) {
           console.error('[Supabase] Sync boot error, falling back locally', err);

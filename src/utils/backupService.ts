@@ -36,7 +36,7 @@ async function getTableData(tableName: string): Promise<any[]> {
  * @param tables Danh sách bảng cần backup (nếu trống sẽ backup tất cả)
  */
 export async function createBackup(
-  tables: string[] = ['customers', 'cameras', 'contracts', 'expenses', 'camlease_store']
+  tables: string[] = ['customers', 'cameras', 'contracts', 'expenses']
 ): Promise<{ success: boolean; backup?: BackupConfig; error?: string }> {
   if (!isSupabaseConfigured) {
     return { success: false, error: 'Supabase chưa được cấu hình' };
